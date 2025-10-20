@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\PaymentController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -23,6 +24,9 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->name('password.email');
 Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.update');
 
+// Rute webhook untuk notifikasi dari Midtrans (tidak perlu otentikasi)
+Route::post('/payment/notification', [PaymentController::class, 'notificationHandler']);
+
 // Rute yang dilindungi (memerlukan otentikasi via Sanctum)
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', function (Request $request) {
@@ -30,6 +34,14 @@ Route::middleware('auth:sanctum')->group(function () {
     });
     Route::post('/logout', [AuthController::class, 'logout']);
 
-    // Product Routes
-    Route::apiResource('products', ProductController::class);
+
+    // Payment Routes
+    Route::post('/payment/create-transaction', [PaymentController::class, 'createTransaction']);
+
+    // Rute khusus Admin
+    Route::middleware('role:admin')->group(function() {
+        Route::get('/admin/dashboard', fn() => response()->json(['message' => 'Welcome Admin!']));
+
+        // Masukan Route Lainnya Disini 
+    });
 });
