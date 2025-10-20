@@ -1,6 +1,6 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "aditya4348/torin_template",
+    "name": "Aditya4348/torin_template",
     "version": "1.0.0",
     "type": "project",
     "description": "The skeleton application for the Laravel framework.",
