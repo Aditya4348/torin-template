@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Midtrans\Config;
 use Midtrans\Snap;
+use Midtrans\Transaction;
 use Midtrans\Notification;
 
 class PaymentController extends Controller
@@ -52,12 +53,43 @@ class PaymentController extends Controller
     }
 
     /**
+     * Memeriksa status transaksi dari Midtrans (Polling).
+     *
+     * @param string $order_id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function checkTransactionStatus(Request $request, $order_id)
+    {
+        // TODO: Sebaiknya ada validasi untuk memastikan user yang sedang login
+        // adalah pemilik dari order_id yang diminta.
+        // Contoh:
+        // $order = Order::where('id', $order_id)->where('user_id', $request->user()->id)->firstOrFail();
+
+        try {
+            $status = Transaction::status($order_id);
+
+            // Kirimkan status yang relevan ke frontend
+            return response()->json([
+                'order_id' => $status->order_id,
+                'gross_amount' => $status->gross_amount,
+                'transaction_status' => $status->transaction_status,
+                'payment_type' => $status->payment_type ?? null,
+                'transaction_time' => $status->transaction_time,
+                'expiry_time' => $status->expiry_time ?? null,
+            ]);
+        } catch (\Exception $e) {
+            // Handle jika transaksi tidak ditemukan atau error lainnya
+            return response()->json(['error' => 'Transaction not found or an error occurred.'], 404);
+        }
+    }
+
+    /**
      * Menangani notifikasi dari Midtrans (webhook).
      */
     public function notificationHandler(Request $request)
     {
         try {
-            $notification = new Notification();
+            $notification = new Notification($request->getContent());
 
             $transactionStatus = $notification->transaction_status;
             $orderId = $notification->order_id;
@@ -66,25 +98,35 @@ class PaymentController extends Controller
             // Logika untuk memproses status transaksi
             // Contoh: Cari order berdasarkan $orderId di database Anda
             // $order = Order::find($orderId);
+            // if (!$order) {
+            //     return response()->json(['error' => 'Order not found'], 404);
+            // }
 
+            // Lakukan verifikasi signature key untuk keamanan
+            $signatureKey = hash('sha512', $orderId . $notification->status_code . $notification->gross_amount . config('midtrans.server_key'));
+            if ($notification->signature_key != $signatureKey) {
+                return response()->json(['error' => 'Invalid signature'], 403);
+            }
+
+            // Gunakan switch case untuk penanganan status yang lebih bersih
             if ($transactionStatus == 'capture') {
                 if ($fraudStatus == 'accept') {
                     // TODO: Update status order menjadi 'paid' atau 'processing'
                     // $order->update(['payment_status' => 'paid']);
                 }
-            } else if ($transactionStatus == 'settlement') {
+            } elseif ($transactionStatus == 'settlement') {
                 // TODO: Update status order menjadi 'paid' atau 'completed'
                 // $order->update(['payment_status' => 'paid']);
-            } else if ($transactionStatus == 'pending') {
+            } elseif ($transactionStatus == 'pending') {
                 // TODO: Update status order menjadi 'pending'
                 // $order->update(['payment_status' => 'pending']);
-            } else if ($transactionStatus == 'deny') {
+            } elseif ($transactionStatus == 'deny') {
                 // TODO: Update status order menjadi 'denied'
                 // $order->update(['payment_status' => 'denied']);
-            } else if ($transactionStatus == 'expire') {
+            } elseif ($transactionStatus == 'expire') {
                 // TODO: Update status order menjadi 'expired'
                 // $order->update(['payment_status' => 'expired']);
-            } else if ($transactionStatus == 'cancel') {
+            } elseif ($transactionStatus == 'cancel') {
                 // TODO: Update status order menjadi 'cancelled'
                 // $order->update(['payment_status' => 'cancelled']);
             }
@@ -98,4 +140,3 @@ class PaymentController extends Controller
         }
     }
 }
-

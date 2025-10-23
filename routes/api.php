@@ -37,6 +37,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Payment Routes
     Route::post('/payment/create-transaction', [PaymentController::class, 'createTransaction']);
+    Route::get('/payment/status/{order_id}', [PaymentController::class, 'checkTransactionStatus']);
 
     // Rute khusus Admin
     Route::middleware('role:admin')->group(function() {

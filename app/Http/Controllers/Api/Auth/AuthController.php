@@ -3,36 +3,30 @@
 namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\ValidationException;
 use App\Models\User;
+use Illuminate\Auth\Events\Login;
 
 class AuthController extends Controller
 {
-    public function login(Request $request)
+    public function login(LoginRequest $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required|string',
-        ]);
+        // Autentikasi & rate limit sudah dilakukan di LoginRequest
+        $request->authenticate();
 
-        $user = User::where('email', $request->email)->first();
+        $user = $request->user(); // ambil user yang berhasil login
 
-        if (! $user || ! Hash::check($request->password, $user->password)) {
-            return response()->json([
-                'message' => 'Kredensial tidak valid'
-            ], 401);
-        }
-
-        // Buat token dengan nama default
+        // Buat token API Laravel Sanctum
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
             'token' => $token,
-            'user' => $user,
+            'user'  => $user,
         ]);
     }
 
